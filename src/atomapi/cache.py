@@ -21,6 +21,11 @@ class Cache:
         self.hours = expire_hours
         self.minutes = expire_minutes
         self.prefix = prefix
+        self.hit = False
+
+    @property
+    def hit(self):
+        return self.hit
 
     def set_expire_hours(self, hours):
         if hours < 0:
@@ -63,13 +68,17 @@ class Cache:
             obj = self._read_object_from_disk(location)
             expire_datetime = datetime.datetime.strptime(obj[self.EXPIRES_FIELD], self.DATE_FORMAT)
             if expire_datetime < datetime.datetime.now():
+                self.hit = False
                 return None
+            self.hit = True
             return obj[self.OBJECT_FIELD]
         except FileNotFoundError:
+            self.hit = False
             return None
         except json.decoder.JSONDecodeError:
             if location is not None and location.exists():
                 os.remove(location)
+            self.hit = False
             return None
 
     def _write_object_to_disk(self, location, obj):
