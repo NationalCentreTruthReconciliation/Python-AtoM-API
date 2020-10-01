@@ -1,8 +1,25 @@
-''' Controls for the virtual taxonomies. Since these are not explicitly defined in the AtoM API, it
-is necessary to keep them separate from the rest of the API code.
+from enum import Enum
 
-All virtual taxonomies leverage the front end to get data.
-'''
+
+class DefaultTaxonomyIds(Enum):
+    ''' It is possible to change what IDs AtoM uses for these taxonomies, so use these only if
+    you're sure the IDs have not been changed.
+    '''
+    PLACES = 42
+    SUBJECTS = 35
+    GENRES = 78
+    LEVEL_OF_DESCRIPTION = 34
+    ACTOR_ENTITY_TYPE = 32
+    THEMATIC_AREA = 72
+    GEOGRAPHIC_SUBREGION = 73
+    MEDIA_TYPE = 46
+    RAD_TITLE_NOTE_TYPE = 52
+    RAD_OTHER_NOTE_TYPE = 51
+    MATERIAL_TYPE = 50
+    DACS_NOTE_TYPE = 74
+    RIGHTS_ACT = 67
+    RIGHTS_BASIS = 68
+
 
 def _get_generic_taxonomies_from_soup(soup):
     for element in soup.find_all('td'):
@@ -34,7 +51,7 @@ def _get_authorities_from_soup_with_ref_codes(soup):
         yield (reference_code, authority_name)
 
 # Add new virtual taxonomies here
-virtual_endpoints = {
+virtual_taxonomies = {
     42: {
         'description': 'Gets all place taxonomies',
         'scrape_url': '{atom_url}/taxonomy/index/id/{id}?page={page}&limit={limit}',
