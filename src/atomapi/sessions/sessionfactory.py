@@ -1,6 +1,3 @@
-from .defaultsession import DefaultSession
-from .f5session import F5Session
-
 class SessionFactory:
     def __init__(self):
         self._session_types = {}
@@ -17,7 +14,3 @@ class SessionFactory:
     @property
     def session_types(self):
         return list(self._session_types.keys())
-
-session_factory = SessionFactory()
-session_factory.register_session_type('default', DefaultSession)
-session_factory.register_session_type('f5', F5Session)
