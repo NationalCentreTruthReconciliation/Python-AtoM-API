@@ -23,10 +23,6 @@ class Cache:
         self.prefix = prefix
         self.hit = False
 
-    @property
-    def hit(self):
-        return self.hit
-
     def set_expire_hours(self, hours):
         if hours < 0:
             raise ValueError('Hours for cached files to expire can''t be negative.')
