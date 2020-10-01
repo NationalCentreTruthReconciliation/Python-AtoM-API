@@ -1,6 +1,3 @@
-''' Facilitates fetching taxonomies and authority names from an AtoM database
-'''
-
 import re
 import hashlib
 import json
