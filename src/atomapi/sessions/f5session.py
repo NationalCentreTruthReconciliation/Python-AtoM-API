@@ -3,8 +3,13 @@ from atomapi.credentials import prompt_for_username_password
 from atomapi.cache import ObfuscatedCache
 
 class F5Session(DefaultSession):
-    def __init__(self, url: str, cache_credentials: bool = False):
+    def __init__(self, url: str, **kwargs):
         super().__init__(url)
+        cache_creds = kwargs.get('cache_credentials')
+        if not cache_creds:
+            self.cache_credentials = False
+        else:
+            self.cache_credentials = True
         if self.cache_credentials:
             self.cache = ObfuscatedCache(expire_hours=8, expire_minutes=0, prefix='f5session')
         else:
