@@ -3,7 +3,7 @@ import requests
 from atomapi.sessions.abstractsession import AbstractSession
 
 class DefaultSession(AbstractSession):
-    def get_authorized_session(self):
+    def _create_new_session(self):
         try:
             return requests.Session()
         except requests.exceptions.ConnectionError as exc:

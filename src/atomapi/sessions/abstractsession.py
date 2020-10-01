@@ -10,6 +10,14 @@ class AbstractSession(ABC):
         self.session_is_authorized = False
         self.__auth_session = None
 
-    @abstractmethod
-    def get_authorized_session(self):
+    @property
+    def authorized_session(self):
         ''' Get an authorized session to interact with the AtoM instance '''
+        if not self.session_is_authorized:
+            self.__auth_session = self._create_new_session()
+            self.session_is_authorized = True
+        return self.__auth_session
+
+    @abstractmethod
+    def _create_new_session(self):
+        pass

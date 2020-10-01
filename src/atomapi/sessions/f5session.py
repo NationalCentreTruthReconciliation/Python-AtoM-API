@@ -10,9 +10,9 @@ class F5Session(DefaultSession):
         else:
             self.cache = None
 
-    def get_authorized_session(self):
+    def _create_new_session(self):
         ''' Log in to F5 before returning the session '''
-        session = super().get_authorized_session()
+        session = super()._create_new_session()
 
         _ = session.post(self.url)
 
