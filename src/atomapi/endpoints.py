@@ -208,7 +208,6 @@ class VirtualBrowseTaxonomyEndpoint(BrowseTaxonomyEndpoint):
     def __init__(self, session: AbstractSession, api_key=None, cache_hours=1, cache_minutes=0):
         # No API Key is necessary for virtual endpoints
         super().__init__(session, None, cache_hours, cache_minutes)
-        self.api_url = None
 
     def call(self, object_id):
         if self.cache.hours + self.cache.minutes == 0:

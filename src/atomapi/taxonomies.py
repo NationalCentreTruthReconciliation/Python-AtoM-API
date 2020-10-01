@@ -25,13 +25,13 @@ def _get_generic_taxonomies_from_soup(soup):
     for element in soup.find_all('td'):
         anchor_tag = element.find('a')
         if anchor_tag:
-            yield anchor_tag.string
+            yield {'name': anchor_tag.string}
 
 def _get_authorities_from_soup(soup):
     for element in soup.find_all('p', class_='title'):
         anchor_tag = element.find('a')
         if anchor_tag:
-            yield anchor_tag.string
+            yield {'name': anchor_tag.string}
 
 def _get_authorities_from_soup_with_ref_codes(soup):
     for element in soup.find_all('article', class_='search-result'):
@@ -48,7 +48,7 @@ def _get_authorities_from_soup_with_ref_codes(soup):
         if ref_code_li_tag:
             reference_code = ref_code_li_tag.string
 
-        yield (reference_code, authority_name)
+        yield {'name': authority_name, 'code': reference_code}
 
 # Add new virtual taxonomies here
 virtual_taxonomies = {
