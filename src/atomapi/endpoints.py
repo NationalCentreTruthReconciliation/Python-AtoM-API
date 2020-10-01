@@ -2,6 +2,8 @@
 '''
 
 import re
+import hashlib
+import json
 import concurrent.futures
 from abc import ABC, abstractmethod
 
@@ -21,9 +23,9 @@ class ApiEndpoint(ABC):
                            prefix=session.host)
         self.api_key = api_key
         self.session = session
-        if sf_culture not in ISO_639_1_LANGUAGES:
+        if sf_culture and sf_culture not in ISO_639_1_LANGUAGES:
             raise ValueError(f'The language code "{sf_culture}" does not appear in ISO 639-1')
-        self.sf_culture = sf_culture
+        self.sf_culture = sf_culture or None
 
 
 class SingleParameterApiEndpoint(ApiEndpoint):
@@ -46,9 +48,10 @@ class SingleParameterApiEndpoint(ApiEndpoint):
         if not self.api_key:
             raise ValueError('No API key is specified, cannot access API without it')
         object_id = str(object_id)
-        cached_object = self.cache.retrieve(self.get_cache_id(object_id))
-        if cached_object:
-            return cached_object
+        if self.cache.hours + self.cache.minutes > 0:
+            cached_object = self.cache.retrieve(self.get_cache_id(object_id))
+            if cached_object:
+                return cached_object
         url = self.session.url + self.api_url.format(identifier=object_id)
         headers = {'REST-API-Key': self.api_key}
         params = {'sf_culture': self.sf_culture} if self.sf_culture else {}
@@ -85,7 +88,115 @@ class ReadInformationObjectEndpoint(SingleParameterApiEndpoint):
 
 
 class BrowseInformationObjectEndpoint(ApiEndpoint):
-    pass
+    @property
+    def api_url(self):
+        return '/api/informationobjects'
+
+    SQ_KEY = re.compile(r'^sq\d+$')
+    def _validate_sq(self, sq: dict):
+        for key, value in sq.items():
+            if not self.SQ_KEY.match(key):
+                raise ValueError(f'Query String "{key}" must start with "sq" and be followed by '
+                                 'one or more numbers')
+            if not value:
+                raise ValueError('Query strings may not be empty')
+
+    SF_KEY = re.compile(r'^sf\d+$')
+    def _validate_sf(self, sf: dict):
+        for key, value in sf.items():
+            if not self.SF_KEY.match(key):
+                raise ValueError(f'Field String "{key}" must start with "sf" and be followed by '
+                                 'one or more numbers')
+            if not value:
+                raise ValueError('Field strings may not be empty')
+
+    SO_KEY = re.compile(r'^so\d+$')
+    def _validate_so(self, so: dict):
+        for key, value in so.items():
+            if not self.SO_KEY.match(key):
+                raise ValueError(f'Operator String "{key}" must start with "so" and be followed by '
+                                 'one or more numbers')
+            if not value:
+                raise ValueError('Operator strings may not be empty')
+
+    VALID_FILTERS = (
+        'limit'
+        'skip'
+        'sort'
+        'lastUpdated'
+        'topLod'
+        'onlyMedia'
+        'copyrightStatus',
+        'materialType',
+        'languages',
+        'levels',
+        'mediatypes',
+        'repos',
+        'places',
+        'subjects',
+        'genres',
+        'creators',
+        'names',
+        'collection',
+        'startDate',
+        'endDate',
+        'rangeType'
+    )
+    def _validate_filters(self, filters: dict):
+        for key, value in filters.items():
+            if key not in self.VALID_FILTERS:
+                raise ValueError(f'Filter Type "{key}" was not recognized')
+            if not value:
+                raise ValueError('Filter values may not be empty')
+
+    def get_cache_id(self, sq: dict, sf: dict, so: dict, filters: dict):
+        combined_dict = {
+            **sq,
+            **sf,
+            **so,
+            **filters
+        }
+        unique_string = json.dumps(combined_dict).encode('utf-8')
+        md5_hash = hashlib.md5()
+        md5_hash.update(unique_string)
+        return f'browse-information-object_{md5_hash.hexdigest()}'
+
+    def call(self, sq: dict, sf: dict, so: dict, filters: dict):
+        if not self.api_key:
+            raise ValueError('No API key is specified, cannot access API without it')
+        self._validate_sq(sq)
+        self._validate_sf(sf)
+        self._validate_so(so)
+        self._validate_filters(filters)
+
+        if self.cache.hours + self.cache.minutes > 0:
+            cached_object = self.cache.retrieve(self.get_cache_id(sq, sf, so, filters))
+            if cached_object:
+                return cached_object
+
+        url = self.session.url + self.api_url
+        headers = {'REST-API-Key': self.api_key}
+        params = {
+            **sq,
+            **sf,
+            **so,
+            **filters
+        }
+        if self.sf_culture:
+            params['sf_culture'] = self.sf_culture
+
+        response = self.session.authorized_session.get(url, headers=headers, params=params)
+        response.raise_for_status()
+        json_response = response.json()
+        if 'message' in json_response:
+            if 'Endpoint not found' in json_response['message']:
+                raise ConnectionError(f'Endpoint at "{url}" does not exist')
+            return json_response
+
+        if self.cache.hours + self.cache.minutes > 0:
+            self.cache.store(self.get_cache_id(sq, sf, so, filters), json_response)
+
+        return json_response
 
 
 class VirtualBrowseTaxonomyEndpoint(BrowseTaxonomyEndpoint):
