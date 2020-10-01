@@ -11,7 +11,7 @@ session = session_factory.create('default', 'https://youratom.ca')
 taxonomies = BrowseTaxonomyEndpoint(session, api_key='1234567890')
 
 # The default taxonomy IDs can be found in atomapi.taxonomies. You can use those
-# the raw IDs if you like.
+# or the raw IDs, whatever you like.
 place_access_points = taxonomies.call(DefaultTaxonomyIds.PLACES.value)
 level_of_descriptions = taxonomies.call(34)
 
