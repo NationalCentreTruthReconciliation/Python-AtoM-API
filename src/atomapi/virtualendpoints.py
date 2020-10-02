@@ -2,6 +2,8 @@ from abc import abstractmethod
 from typing import Union
 import re
 import concurrent.futures
+import urllib.parse
+from urllib.robotparser import RobotFileParser
 
 from bs4 import BeautifulSoup
 
@@ -16,15 +18,19 @@ class VirtualApiEndpoint(ApiEndpoint):
 
     RESULT_LIMIT = 10
     MAX_THREAD_POOL_EXECUTORS = 5
+    USER_AGENT = 'Python requests v2'
     RESULTS = re.compile(r'Results\s(?P<start>\d+)\sto\s(?P<end>\d+)\sof\s(?P<total>\d+)')
 
     def __init__(self, session: AbstractSession, api_key: str = None,
                  cache_hours: int = 1, cache_minutes: int = 0,
                  sf_culture: str = None):
+        super().__init__(session, None, cache_hours, cache_minutes, sf_culture)
         if cache_hours + cache_minutes == 0:
             raise ValueError('You may not call a virtual API endpoint without caching, since '
                              'scraping the front-end puts a heavy load on the server.')
-        super().__init__(session, None, cache_hours, cache_minutes, sf_culture)
+        robots_url = urllib.parse.urljoin(self.session.url, 'robots.txt')
+        self.robots = RobotFileParser(robots_url)
+        self._ignore_robots = False
 
     @property
     @abstractmethod
@@ -48,7 +54,8 @@ class VirtualApiEndpoint(ApiEndpoint):
         '''
 
     def _get_page_content(self, url: str):
-        ''' Get the raw HTML from a GET request to a URL
+        ''' Get the raw HTML from a GET request to a URL. Checks if the site allows web crawlers
+        (like ourselves) to parse the page.
 
         Args:
             url (str): A url to a webpage
@@ -56,6 +63,12 @@ class VirtualApiEndpoint(ApiEndpoint):
         Returns:
             The raw HTML webpage content
         '''
+        if not self._ignore_robots: # I leave this decision to you
+            if self.robots.last_checked == 0:
+                self.robots.read()
+            if not self.robots.can_fetch(self.USER_AGENT, url):
+                raise ConnectionError(f'The robots.txt file for {self.session.url} does not permit '
+                                      'web scraping by this application.')
         response = self.session.authorized_session.get(url, headers={'Accept': 'text/html'})
         response.raise_for_status()
         return response.text
@@ -70,18 +83,24 @@ class VirtualApiEndpoint(ApiEndpoint):
         Returns:
             (list): A list of all the URLs required to access every item in the AtoM list
         '''
-        first_page_url = self.session.url + self.api_url.format(
-            limit=self.RESULT_LIMIT,
-            page=1,
-            **url_kwargs)
+        first_page_url = urllib.parse.urljoin(
+            self.session.url,
+            self.api_url.format(
+                limit=self.RESULT_LIMIT,
+                page=1,
+                **url_kwargs)
+        )
         total_items = self._get_total_list_items(first_page_url)
         all_urls = [first_page_url]
         # Start at page 2, go up by 10 items each time until total_items is reached
         for page_num, _ in enumerate(range(self.RESULT_LIMIT, total_items, self.RESULT_LIMIT), 2):
-            new_url = self.session.url + self.api_url.format(
-                limit=self.RESULT_LIMIT,
-                page=page_num,
-                **url_kwargs)
+            new_url = urllib.parse.urljoin(
+                self.session.url,
+                self.api_url.format(
+                    limit=self.RESULT_LIMIT,
+                    page=page_num,
+                    **url_kwargs)
+            )
             all_urls.append(new_url)
         return all_urls
 
