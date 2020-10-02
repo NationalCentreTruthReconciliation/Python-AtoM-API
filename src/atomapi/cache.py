@@ -84,22 +84,3 @@ class Cache:
     def _read_object_from_disk(self, location):
         with open(location, 'r') as file_handle:
             return json.load(file_handle)
-
-
-class ObfuscatedCache(Cache):
-    ''' Hash file name and obfuscate file contents. Not secure, but better than nothing. '''
-
-    def get_storage_location(self, name: str):
-        file_name = f'{self.prefix}_{name}' if self.prefix else name
-        md5 = hashlib.md5()
-        md5.update(file_name.encode('utf-8'))
-        return Path(tempfile.gettempdir()) / f'{md5.hexdigest()}.tmp'
-
-    def _write_object_to_disk(self, location, obj):
-        ''' Write object as a binary pickle '''
-        with open(location, 'wb') as file_handle:
-            pickle.dump(obj, file_handle, protocol=2)
-
-    def _read_object_from_disk(self, location):
-        with open(location, 'rb') as file_handle:
-            return pickle.load(file_handle)
