@@ -1,18 +1,16 @@
 import re
 import hashlib
 import json
-import concurrent.futures
 from abc import ABC, abstractmethod
-
-from bs4 import BeautifulSoup
+from typing import Union
 
 from atomapi.cache import Cache
 from atomapi.sessions.abstractsession import AbstractSession
-from atomapi.taxonomies import virtual_taxonomies
 from atomapi.languages import ISO_639_1_LANGUAGES
 
 
 class ApiEndpoint(ABC):
+    ''' A generic API endpoint with caching capabilities '''
     def __init__(self, session: AbstractSession, api_key: str,
                  cache_hours: int = 1, cache_minutes: int = 0,
                  sf_culture: str = None):
@@ -24,29 +22,44 @@ class ApiEndpoint(ABC):
             raise ValueError(f'The language code "{sf_culture}" does not appear in ISO 639-1')
         self.sf_culture = sf_culture or None
 
-
-class SingleParameterApiEndpoint(ApiEndpoint):
     @property
     @abstractmethod
     def endpoint_name(self):
-        ''' Unique name for API endpoint '''
+        ''' Unique name for this API endpoint '''
 
     @property
     @abstractmethod
     def api_url(self):
-        ''' API url segment used to access browse endpoint. Must start with a slash, and must have
-        an unpopulated {identifier}.
-        '''
+        ''' API url segment used to access endpoint. Must start with a slash '''
 
-    def get_cache_id(self, object_id):
+    @abstractmethod
+    def _get_cache_id(self, **kwargs):
+        ''' Create a unique identifier for caching API result '''
+
+
+class SingleParameterApiEndpoint(ApiEndpoint):
+    ''' Represents an API endpoint that only requires a single unique identifier to fetch a piece of
+    data.
+    '''
+    def _get_cache_id(self, **kwargs):
+        object_id = kwargs.get('object_id')
         return f'{self.endpoint_name}_{object_id}'
 
-    def call(self, object_id):
+    def get(self, object_id: Union[str, int]):
+        ''' Make a GET request to the API, using the object_id to populate the {identifier} in the
+        api_url.
+
+        Args:
+            object_id (Union[str, int]): The identifier used to fetch an object from the API
+
+        Returns:
+            (dict): The object received from the API.
+        '''
         if not self.api_key:
             raise ValueError('No API key is specified, cannot access API without it')
         object_id = str(object_id)
         if self.cache.hours + self.cache.minutes > 0:
-            cached_object = self.cache.retrieve(self.get_cache_id(object_id))
+            cached_object = self.cache.retrieve(self._get_cache_id(object_id=object_id))
             if cached_object:
                 return cached_object
         url = self.session.url + self.api_url.format(identifier=object_id)
@@ -60,7 +73,7 @@ class SingleParameterApiEndpoint(ApiEndpoint):
                 raise ConnectionError(f'Endpoint at "{url}" does not exist')
             return json_response
         if self.cache.hours + self.cache.minutes > 0:
-            self.cache.store(self.get_cache_id(object_id), json_response)
+            self.cache.store(self._get_cache_id(object_id=object_id), json_response)
         return json_response
 
 
@@ -81,40 +94,24 @@ class ReadInformationObjectEndpoint(SingleParameterApiEndpoint):
 
     @property
     def endpoint_name(self):
-        return 'read-information-object'
+        return 'read-object'
 
 
 class BrowseInformationObjectEndpoint(ApiEndpoint):
-    @property
-    def api_url(self):
-        return '/api/informationobjects'
-
-    SQ_KEY = re.compile(r'^sq\d+$')
-    def _validate_sq(self, sq: dict):
-        for key, value in sq.items():
-            if not self.SQ_KEY.match(key):
-                raise ValueError(f'Query String "{key}" must start with "sq" and be followed by '
-                                 'one or more numbers')
-            if not value:
-                raise ValueError('Query strings may not be empty')
-
-    SF_KEY = re.compile(r'^sf\d+$')
-    def _validate_sf(self, sf: dict):
-        for key, value in sf.items():
-            if not self.SF_KEY.match(key):
-                raise ValueError(f'Field String "{key}" must start with "sf" and be followed by '
-                                 'one or more numbers')
-            if not value:
-                raise ValueError('Field strings may not be empty')
-
-    SO_KEY = re.compile(r'^so\d+$')
-    def _validate_so(self, so: dict):
-        for key, value in so.items():
-            if not self.SO_KEY.match(key):
-                raise ValueError(f'Operator String "{key}" must start with "so" and be followed by '
-                                 'one or more numbers')
-            if not value:
-                raise ValueError('Operator strings may not be empty')
+    QUERY_VALIDATORS = {
+        'sq': {
+            'verbose_name': 'Query String',
+            'regex': re.compile(r'^sq(?P<index>\d+)$')
+        },
+        'sf': {
+            'verbose_name': 'Field String',
+            'regex': re.compile(r'^sf(?P<index>\d+)$'),
+        },
+        'so': {
+            'verbose_name': 'Operator String',
+            'regex': re.compile(r'^so(?P<index>\d+)$'),
+        },
+    }
 
     VALID_FILTERS = (
         'limit'
@@ -139,14 +136,20 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
         'endDate',
         'rangeType'
     )
-    def _validate_filters(self, filters: dict):
-        for key, value in filters.items():
-            if key not in self.VALID_FILTERS:
-                raise ValueError(f'Filter Type "{key}" was not recognized')
-            if not value:
-                raise ValueError('Filter values may not be empty')
 
-    def get_cache_id(self, sq: dict, sf: dict, so: dict, filters: dict):
+    @property
+    def api_url(self):
+        return '/api/informationobjects'
+
+    @property
+    def endpoint_name(self):
+        return 'browse-objects'
+
+    def _get_cache_id(self, **kwargs):
+        sq = kwargs.get('sq') or {}
+        sf = kwargs.get('sf') or {}
+        so = kwargs.get('so') or {}
+        filters = kwargs.get('filters') or {}
         combined_dict = {
             **sq,
             **sf,
@@ -156,9 +159,62 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
         unique_string = json.dumps(combined_dict).encode('utf-8')
         md5_hash = hashlib.md5()
         md5_hash.update(unique_string)
-        return f'browse-information-object_{md5_hash.hexdigest()}'
+        return f'browse-objects_{md5_hash.hexdigest()}'
 
-    def call(self, sq: dict, sf: dict, so: dict, filters: dict):
+    def _validate_sq(self, sq: dict):
+        self._validate_query_parameters(sq, two_letter_code='sq')
+
+    def _validate_sf(self, sf: dict):
+        self._validate_query_parameters(sf, two_letter_code='sf')
+
+    def _validate_so(self, so: dict):
+        self._validate_query_parameters(so, two_letter_code='so')
+        for value in so.values():
+            if value not in ('and', 'or', 'not'):
+                name = self.QUERY_VALIDATORS['so']['verbose_name']
+                raise ValueError(f'{name} "{value}" was not one of: and, or, not')
+
+    def _validate_query_parameters(self, queries: dict, two_letter_code: str):
+        indices = set()
+        regex = self.QUERY_VALIDATORS[two_letter_code]['regex']
+        name = self.QUERY_VALIDATORS[two_letter_code]['verbose_name']
+        for key, value in queries.items():
+            match_obj = regex.match(key)
+            if not match_obj:
+                raise ValueError(f'{name} "{key}" did not start with "{two_letter_code}", followed '
+                                 'by one or more numbers')
+            curr_index = int(match_obj.group('index'))
+            if curr_index in indices:
+                raise ValueError(f'{name} with index "{curr_index}" was specified more than once')
+            indices.add(curr_index)
+            if not value:
+                raise ValueError(f'{name}s may not be empty')
+
+    def _validate_filters(self, filters: dict):
+        for key, value in filters.items():
+            if key not in self.VALID_FILTERS:
+                raise ValueError(f'Filter Type "{key}" was not recognized')
+            if not value:
+                raise ValueError('Filter values may not be empty')
+
+    def get(self, sq: dict, sf: dict, so: dict, filters: dict):
+        ''' Make a GET request to the API to search for information objects matching the queries
+        and filters.
+
+        Args:
+            sq (dict): Query strings, used to select objects containing a certain string in a field.
+            Each should be in the form 'sqX': 'Some String', where X is an int
+            sf (dict): Field strings, used to select which fields the query strings apply to. Each
+            should be in the form 'sfX': 'Some Field', where F is an int
+            so (dict): Operator strings, used to logically combine multiple queries. Each should be
+            in the form 'soX': 'Some Operator', where X is an int. Valid operators are and, or, not
+            filters (dict): Additional filters, used to filter the objects in ways that are not
+            possible with query strings alone, e.g., by date. Each should be in the form
+            'filterName': 'value'
+
+        Returns:
+            (dict): The selected information objects
+        '''
         if not self.api_key:
             raise ValueError('No API key is specified, cannot access API without it')
         self._validate_sq(sq)
@@ -167,7 +223,12 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
         self._validate_filters(filters)
 
         if self.cache.hours + self.cache.minutes > 0:
-            cached_object = self.cache.retrieve(self.get_cache_id(sq, sf, so, filters))
+            cached_object = self.cache.retrieve(self._get_cache_id(
+                sq=sq,
+                sf=sf,
+                so=so,
+                filters=filters)
+            )
             if cached_object:
                 return cached_object
 
@@ -191,7 +252,12 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
             return json_response
 
         if self.cache.hours + self.cache.minutes > 0:
-            self.cache.store(self.get_cache_id(sq, sf, so, filters), json_response)
+            self.cache.store(self._get_cache_id(
+                sq=sq,
+                sf=sf,
+                so=so,
+                filters=filters
+            ), json_response)
 
         return json_response
 
