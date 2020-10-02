@@ -11,10 +11,8 @@ This library also implements a virtual endpoint that can be used to retrieve all
 
 ## Install
 
-To install, download or clone this repository and run the included setup script.
-
 ```shell
-python setup.py install
+python -m pip install atomapi
 ```
 
 ## Usage
@@ -35,4 +33,40 @@ There are also three concrete Virtual API endpoint classes that make use of the 
 
 Note that the virtual endpoints have been tested on AtoM version 2.5, with the default arDominionPlugin theme. The virtual endpoints are not guaranteed to work with other versions of AtoM or highly customized themes. That being said, it would be easy to create a new endpoint that takes into account the modifed markup or CSS in a custom theme.
 
-To view examples for each, go to the [examples folder](/src/examples/).
+To view examples on how to use each endpoint, go to the [examples code documentation](https://github.com/danloveg/atom-api-python/tree/master/src/examples).
+
+## Simple Example
+
+To get data from the API, you will need to create a session object from the session factory. There are two types of sessions, `default`, and `f5`, for most AtoM instances, a `default` session will be sufficient.
+
+```python
+from atomapi.sessions import session_factory
+
+my_session = session_factory.create(name='default', url='https://youratom.com')
+```
+
+Once you've created a session, you can use it with any of the real and virtual endpoints. You may also reuse this session variable with as many endpoints as you like.
+
+```python
+from atomapi.sessions import session_factory
+from atomapi.endpoints import BrowseTaxonomyEndpoint
+from atomapi.virtualendpoints import VirtualBrowseTaxonomyEndpoint
+
+my_session = session_factory.create('default', 'https://youratom.com')
+
+real_taxonomy_endpoint = BrowseTaxonomyEndpoint(my_session, api_key='1234567890')
+virtual_taxonomy_endpoint = VirtualBrowseTaxonomyEndpoint(my_session)
+```
+
+Once your endpoints are set up, you can call the `get` function on them to get data.
+
+```python
+from atomapi.taxonomies import DefaultTaxonomyIds
+
+subjects = real_taxonomy_endpoint.get(DefaultTaxonomyIds.SUBJECTS.value)
+places = virtual_taxonomy_endpoint.get(DefaultTaxonomyIds.PLACES.value)
+```
+
+The virtual API will take a lot longer to fetch the same amount of data as the real API since it is scraping the web page.
+
+For more examples, go to the [examples code documentation](https://github.com/danloveg/atom-api-python/tree/master/src/examples).
