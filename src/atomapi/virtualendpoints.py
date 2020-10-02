@@ -24,8 +24,6 @@ class VirtualApiEndpoint(ApiEndpoint):
         if cache_hours + cache_minutes == 0:
             raise ValueError('You may not call a virtual API endpoint without caching, since '
                              'scraping the front-end puts a heavy load on the server.')
-        if api_key is not None:
-            print('An API Key is not necessary for virtual endpoints.')
         super().__init__(session, None, cache_hours, cache_minutes, sf_culture)
 
     @property
