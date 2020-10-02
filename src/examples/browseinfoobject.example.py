@@ -23,7 +23,7 @@ browse_info_objects = BrowseInformationObjectEndpoint(
 # This call returns results with coffee OR chocolate in any field, with dates
 # that match or overlap a range of January 1, 1990 - March 4, 2001, sorted by
 # date:
-browse_result = browse_info_objects.call(
+browse_result = browse_info_objects.get(
     sq={
         'sq0': 'coffee',
         'sq1': 'chocolate'

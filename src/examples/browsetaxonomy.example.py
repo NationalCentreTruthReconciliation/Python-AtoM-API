@@ -12,8 +12,8 @@ taxonomies = BrowseTaxonomyEndpoint(session, api_key='1234567890')
 
 # The default taxonomy IDs can be found in atomapi.taxonomies. You can use those
 # or the raw IDs, whatever you like.
-place_access_points = taxonomies.call(DefaultTaxonomyIds.PLACES.value)
-level_of_descriptions = taxonomies.call(34)
+place_access_points = taxonomies.get(DefaultTaxonomyIds.PLACES.value)
+level_of_descriptions = taxonomies.get(34)
 
 print('Level of Descriptions:')
 print(level_of_descriptions)

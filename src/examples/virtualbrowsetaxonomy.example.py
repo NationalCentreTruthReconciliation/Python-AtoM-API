@@ -6,19 +6,16 @@ such, this type of call can put stress on the server, so caching is mandatory.
 If you disable the cache, you will get an exception.
 '''
 from atomapi.sessions import session_factory
-from atomapi.endpoints import VirtualBrowseTaxonomyEndpoint
-from atomapi.taxonomies import virtual_taxonomies
+from atomapi.taxonomies import DefaultTaxonomyIds
+from atomapi.virtualendpoints import VirtualBrowseTaxonomyEndpoint
 
-session = session_factory.create('default', 'https://nctrpublic.ad.umanitoba.ca')
+session = session_factory.create('default', 'https://youratom.ca')
 
 # You don't need an API key to access the front end
 taxonomies = VirtualBrowseTaxonomyEndpoint(session)
 
-print('These are the registered virtual taxonomies:')
-for key, value_dict in virtual_taxonomies.items():
-    print(f'ID: {key}, Description: {value_dict["description"]}')
+# You can still use the normal taxonomy IDs for the front end, just like with the API
+subjects = taxonomies.get(DefaultTaxonomyIds.SUBJECTS.value)
 
-authority_names = taxonomies.call(101)
-
-print('Authority names:')
-print(authority_names)
+print('Subjects:')
+print(subjects)

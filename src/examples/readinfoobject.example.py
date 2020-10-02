@@ -16,7 +16,7 @@ read_info_objects = ReadInformationObjectEndpoint(
     sf_culture='en')
 
 # The ID you use here will be dependent on your AtoM instance
-some_object = read_info_objects.call('this-is-a-unique-slug-000')
+some_object = read_info_objects.get('this-is-a-unique-slug-000')
 
 print('Information Object:')
 print(some_object)
