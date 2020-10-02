@@ -4,7 +4,7 @@ with open('README.md', 'r') as file_handle:
     long_description = file_handle.read()
 
 setup(
-    name='atom-api-danloveg',
+    name='atomapi',
     version='0.0.1',
     author='Daniel Lovegrove',
     author_email='d.lovegrove11@gmail.com',
