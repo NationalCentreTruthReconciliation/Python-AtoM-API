@@ -22,6 +22,18 @@ class ApiEndpoint(ABC):
             raise ValueError(f'The language code "{sf_culture}" does not appear in ISO 639-1')
         self.sf_culture = sf_culture or None
 
+    def raise_for_json_error(self, json_response, request_url):
+        if 'message' in json_response:
+            message = json_response['message']
+            if 'Endpoint not found' in message:
+                raise ConnectionError(f'Endpoint at "{request_url}" does not exist')
+            if 'Not authorized' in message:
+                raise ConnectionError(
+                    f'You are not authorized to access "{request_url}" '
+                    f'with the API Key "{self.api_key}"'
+                )
+            raise ConnectionError(f'Error connecting to "{request_url}": {message}')
+
     @property
     @abstractmethod
     def endpoint_name(self):
@@ -68,10 +80,7 @@ class SingleParameterApiEndpoint(ApiEndpoint):
         response = self.session.authorized_session.get(url, headers=headers, params=params)
         response.raise_for_status()
         json_response = response.json()
-        if 'message' in json_response:
-            if 'Endpoint not found' in json_response['message']:
-                raise ConnectionError(f'Endpoint at "{url}" does not exist')
-            return json_response
+        self.raise_for_json_error(json_response, url)
         if self.cache.hours + self.cache.minutes > 0:
             self.cache.store(self._get_cache_id(object_id=object_id), json_response)
         return json_response
@@ -246,10 +255,7 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
         response = self.session.authorized_session.get(url, headers=headers, params=params)
         response.raise_for_status()
         json_response = response.json()
-        if 'message' in json_response:
-            if 'Endpoint not found' in json_response['message']:
-                raise ConnectionError(f'Endpoint at "{url}" does not exist')
-            return json_response
+        self.raise_for_json_error(json_response, url)
 
         if self.cache.hours + self.cache.minutes > 0:
             self.cache.store(self._get_cache_id(
