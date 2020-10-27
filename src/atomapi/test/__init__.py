@@ -35,9 +35,11 @@ class InMemoryCache(Cache):
     def __init__(self, expire_hours=1, expire_minutes=0, prefix=None):
         super().__init__(expire_hours, expire_minutes, prefix)
         self.memory_cache = {}
+        self.last_object_cached = None
 
     def _write_object_to_disk(self, location, obj):
         self.memory_cache[location] = obj
+        self.last_object_cached = obj[self.OBJECT_FIELD]
 
     def _read_object_from_disk(self, location):
         if location in self.memory_cache:
