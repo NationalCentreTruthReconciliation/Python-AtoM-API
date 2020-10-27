@@ -6,20 +6,8 @@ import pytest
 sys.path.append(str(Path(__file__).parent.parent))
 
 # pylint: disable=wrong-import-position,no-name-in-module,import-error
-from sessions.abstractsession import AbstractSession
 from sessions import session_factory
-
-class ExampleSession(AbstractSession):
-    ''' A new session type that is used for testing purposes only '''
-    def __init__(self, url: str, **kwargs):
-        super().__init__(url, **kwargs)
-        self.last_session_created = None
-        self.user = kwargs.get('user')
-
-    def _create_new_session(self):
-        session = object()
-        self.last_session_created = session
-        return session
+from . import ExampleSession
 
 class TestSession:
     def test_instance_variables_set(self):
