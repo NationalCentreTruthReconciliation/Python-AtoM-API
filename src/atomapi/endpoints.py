@@ -10,12 +10,16 @@ from atomapi.languages import ISO_639_1_LANGUAGES
 
 
 class ApiEndpoint(ABC):
-    ''' A generic API endpoint with caching capabilities '''
+    ''' A generic API endpoint with caching capabilities. '''
     def __init__(self, session: AbstractSession, api_key: str,
-                 cache_hours: int = 1, cache_minutes: int = 0,
-                 sf_culture: str = None):
-        self.cache = Cache(expire_hours=cache_hours, expire_minutes=cache_minutes,
-                           prefix=session.host)
+                 sf_culture: str = None, **kwargs):
+        self.cache = kwargs.get('cache') or Cache(1, 0, prefix=session.host)
+        cache_hours = kwargs.get('cache_hours')
+        cache_minutes = kwargs.get('cache_minutes')
+        if cache_hours:
+            self.cache.set_expire_hours(cache_hours)
+        if cache_minutes:
+            self.cache.set_expire_minutes(cache_minutes)
         self.api_key = api_key
         self.session = session
         if sf_culture and sf_culture not in ISO_639_1_LANGUAGES:

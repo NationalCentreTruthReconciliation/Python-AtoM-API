@@ -22,10 +22,9 @@ class VirtualApiEndpoint(ApiEndpoint):
     RESULTS = re.compile(r'Results\s(?P<start>\d+)\sto\s(?P<end>\d+)\sof\s(?P<total>\d+)')
 
     def __init__(self, session: AbstractSession, api_key: str = None,
-                 cache_hours: int = 1, cache_minutes: int = 0,
-                 sf_culture: str = None):
-        super().__init__(session, None, cache_hours, cache_minutes, sf_culture)
-        if cache_hours + cache_minutes == 0:
+                 sf_culture: str = None, **kwargs):
+        super().__init__(session, None, sf_culture, **kwargs)
+        if self.cache.cache_hours + self.cache.cache_minutes == 0:
             raise ValueError('You may not call a virtual API endpoint without caching, since '
                              'scraping the front-end puts a heavy load on the server.')
         robots_url = urllib.parse.urljoin(self.session.url, 'robots.txt')
