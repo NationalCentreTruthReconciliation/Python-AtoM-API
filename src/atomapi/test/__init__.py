@@ -7,15 +7,27 @@ sys.path.append(str(Path(__file__).parent.parent))
 from sessions.abstractsession import AbstractSession
 from cache import Cache
 
+
 class ExampleSession(AbstractSession):
     ''' A new session type that is used for testing purposes only '''
+
+    class AuthorizedSession:
+        class FakeResponse:
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return {}
+
+        def get(self, url, **kwargs):
+            return self.FakeResponse()
+
     def __init__(self, url: str, **kwargs):
         super().__init__(url, **kwargs)
         self.last_session_created = None
         self.user = kwargs.get('user')
 
     def _create_new_session(self):
-        session = object()
+        session = self.AuthorizedSession()
         self.last_session_created = session
         return session
 
