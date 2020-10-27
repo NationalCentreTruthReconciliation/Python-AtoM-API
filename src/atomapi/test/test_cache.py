@@ -8,7 +8,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-# pylint: disable=wrong-import-position,no-name-in-module
+# pylint: disable=wrong-import-position,no-name-in-module,import-error
 from cache import Cache
 
 
