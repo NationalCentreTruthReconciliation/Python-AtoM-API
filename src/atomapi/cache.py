@@ -3,8 +3,6 @@ import datetime
 import os
 import json
 import tempfile
-import hashlib
-import pickle
 
 
 class Cache:
@@ -34,7 +32,7 @@ class Cache:
         self.minutes = minutes
 
     def get_storage_location(self, name):
-        file_name = f'{self.prefix}_pycache_{name}.json' if self.prefix else f'pyache_{name}.json'
+        file_name = f'{self.prefix}_pycache_{name}.json' if self.prefix else f'pycache_{name}.json'
         return Path(tempfile.gettempdir()) / file_name
 
     def store(self, name, obj):
