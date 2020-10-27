@@ -3,7 +3,12 @@ class SessionFactory:
         self._session_types = {}
 
     def register_session_type(self, name, klass):
-        self._session_types[name] = klass
+        if name not in self._session_types:
+            self._session_types[name] = klass
+
+    def de_register_session_type(self, name):
+        if name in self._session_types:
+            del self._session_types[name]
 
     def create(self, name: str, url: str, **kwargs):
         if name not in self._session_types:
