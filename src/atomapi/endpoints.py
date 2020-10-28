@@ -100,6 +100,12 @@ class BrowseTaxonomyEndpoint(SingleParameterApiEndpoint):
     def endpoint_name(self):
         return 'browse-taxonomies'
 
+    def raise_for_json_error(self, json_response, request_url):
+        if 'message' in json_response:
+            if 'taxonomy not found' in json_response['message'].lower():
+                raise ConnectionError(f'No taxonomies found at "{request_url}"')
+        super().raise_for_json_error(json_response, request_url)
+
 
 class ReadInformationObjectEndpoint(SingleParameterApiEndpoint):
     @property
@@ -109,6 +115,12 @@ class ReadInformationObjectEndpoint(SingleParameterApiEndpoint):
     @property
     def endpoint_name(self):
         return 'read-object'
+
+    def raise_for_json_error(self, json_response, request_url):
+        if 'message' in json_response:
+            if 'information object not found' in json_response['message'].lower():
+                raise ConnectionError(f'No information object found at "{request_url}"')
+        super().raise_for_json_error(json_response, request_url)
 
 
 class BrowseInformationObjectEndpoint(ApiEndpoint):
@@ -219,7 +231,7 @@ class BrowseInformationObjectEndpoint(ApiEndpoint):
             sq (dict): Query strings, used to select objects containing a certain string in a field.
             Each should be in the form 'sqX': 'Some String', where X is an int
             sf (dict): Field strings, used to select which fields the query strings apply to. Each
-            should be in the form 'sfX': 'Some Field', where F is an int
+            should be in the form 'sfX': 'Some Field', where X is an int
             so (dict): Operator strings, used to logically combine multiple queries. Each should be
             in the form 'soX': 'Some Operator', where X is an int. Valid operators are and, or, not
             filters (dict): Additional filters, used to filter the objects in ways that are not
