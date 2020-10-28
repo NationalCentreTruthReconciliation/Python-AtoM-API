@@ -220,19 +220,6 @@ class TestReadInformationObjectEndpoint:
         assert endpoint.cache.hit
         assert cached_result == info_object_2
 
-    def test_error_raised_if_non_200_status(self, monkeypatch):
-        def mock_raise_for_status(self):
-            raise ConnectionError('Non-200 status code')
-        monkeypatch.setattr(ExampleSession.AuthorizedSession.FakeResponse, 'raise_for_status',
-                            mock_raise_for_status)
-
-        session = ExampleSession('https://example.com')
-        cache = InMemoryCache()
-        endpoint = ReadInformationObjectEndpoint(session, '123456', cache=cache)
-
-        with pytest.raises(ConnectionError):
-            _ = endpoint.get(1)
-
     @pytest.mark.parametrize('error', [
         'Endpoint not found',
         'Not authorized',
