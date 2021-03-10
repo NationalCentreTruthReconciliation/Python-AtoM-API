@@ -1,7 +1,7 @@
+from atomapi.languages import ISO_639_1_LANGUAGES
 from atomapi.utils import parse_url_from_string
 from atomapi.models.taxonomy import Taxonomy
 from atomapi.models.informationobject import InformationObject
-
 from atomapi.authorizer import Authorizer, BasicAuthorizer
 
 
@@ -38,6 +38,8 @@ class Atom:
         Returns:
             (tuple): A two-tuple containing the raw Response object and the URL requested
         '''
+        if sf_culture not in ISO_639_1_LANGUAGES:
+            raise ValueError(f'the language code "{sf_culture}" is not in the ISO 639-1 standard')
         if not path.lstrip('/').startswith('api/'):
             raise ValueError(f'the requested API path "{path}" is not an api path!')
         headers = {'REST-API-Key': self.api_key}
