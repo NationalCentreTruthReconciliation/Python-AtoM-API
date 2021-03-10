@@ -35,7 +35,7 @@ class TaxonomyId(Enum):
 
 
 class Taxonomy(BaseModel):
-    ''' A list of taxonomy terms. Terms can be viewed with the browse() method.
+    ''' Browse a list of taxonomy terms. Terms can be viewed with the browse() method.
 
     Each has the following attributes:
 
