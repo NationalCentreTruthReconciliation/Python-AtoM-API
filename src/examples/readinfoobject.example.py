@@ -1,22 +1,16 @@
 ''' Feel free to play around with this script and use your own AtoM instance and
 API Key.
 '''
+import atomapi
+from atomapi.authorizer import F5Authorizer
 
-from atomapi.sessions import session_factory
-from atomapi.endpoints import ReadInformationObjectEndpoint
+# Use the F5 authorizer. You will need to log in the first time data is fetched
+atom = atomapi.Atom('https://youratom.ca', api_key='1234567890')
+f5 = F5Authorizer(atom.url, cache_credentials=True)
+atom.set_authorizer(f5)
 
-session = session_factory.create('default', 'https://youratom.ca')
-
-# Disable caching for endpoint, use English culture
-read_info_objects = ReadInformationObjectEndpoint(
-    session=session,
-    api_key='1234567890',
-    cache_hours=0,
-    cache_minutes=0,
-    sf_culture='en')
-
-# The ID you use here will be dependent on your AtoM instance
-some_object = read_info_objects.get('this-is-a-unique-slug-000')
+# Read object in French
+info_obj = atom.informationobjects.read('some-reference-code-000', sf_culture='fr')
 
 print('Information Object:')
-print(some_object)
+print(info_obj)

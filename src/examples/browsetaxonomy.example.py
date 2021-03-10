@@ -1,22 +1,16 @@
 ''' Feel free to play around with this script and use your own AtoM instance and
 API Key.
 '''
+import atomapi
+from atomapi.models.taxonomy import TaxonomyId
 
-from atomapi.sessions import session_factory
-from atomapi.endpoints import BrowseTaxonomyEndpoint
-from atomapi.taxonomies import DefaultTaxonomyIds
+atom = atomapi.Atom('https://youratom.ca', api_key='1234567890')
+places = atom.taxonomies.browse('places')
 
-session = session_factory.create('default', 'https://youratom.ca')
+# Either of these will also work:
+# places = atom.taxonomies.browse(TaxonomyId.PLACES)
+# places = atom.taxonomies.browse(42)
 
-taxonomies = BrowseTaxonomyEndpoint(session, api_key='1234567890')
-
-# The default taxonomy IDs can be found in atomapi.taxonomies. You can use those
-# or the raw IDs, whatever you like.
-place_access_points = taxonomies.get(DefaultTaxonomyIds.PLACES.value)
-level_of_descriptions = taxonomies.get(34)
-
-print('Level of Descriptions:')
-print(level_of_descriptions)
-print()
-print('Place Access Points:')
-print(place_access_points)
+print('Place taxonomies:')
+for term in places:
+    print(term['name'])
