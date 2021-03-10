@@ -75,7 +75,16 @@ class InformationObject(BaseModel):
         self._validate_sf(sf)
         self._validate_so(so)
         self._validate_filters(filters)
-        raise NotImplementedError('informationobjects.browse has not been written yet!')
+        params = {
+            **sq,
+            **sf,
+            **so,
+            **filters
+        }
+        response, url = self.atom.get(self.browse_api_url, params=params, sf_culture=sf_culture)
+        json_response = response.json()
+        self.raise_for_json_error(json_response, url)
+        return json_response
 
     def _validate_sq(self, sq: dict):
         self._validate_query_parameters(sq, two_letter_code='sq')
