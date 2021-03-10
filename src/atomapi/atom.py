@@ -1,5 +1,6 @@
 from atomapi.utils import parse_url_from_string
 from atomapi.models.taxonomy import Taxonomy
+from atomapi.models.informationobject import InformationObject
 
 from atomapi.authorizer import Authorizer, BasicAuthorizer
 
@@ -15,7 +16,7 @@ class Atom:
         self._authorizer = BasicAuthorizer(self.url)
 
         self.taxonomies = Taxonomy(self)
-        self.informationobjects = None
+        self.informationobjects = InformationObject(self)
 
     def set_authorizer(self, authorizer: Authorizer):
         self._authorizer = authorizer
