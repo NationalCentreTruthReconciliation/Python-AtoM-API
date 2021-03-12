@@ -60,10 +60,7 @@ class InformationObject(BaseModel):
 
     def read(self, id_: str, sf_culture: str = 'en'):
         request_path = self.read_api_url.format(identifier=id_)
-        response, url = self.atom.get(request_path, params=None, sf_culture=sf_culture)
-        json_response = response.json()
-        self.raise_for_json_error(json_response, url)
-        return json_response
+        return self.get_json(request_path, params=None, sf_culture=sf_culture)
 
     @property
     def browse_api_url(self):
@@ -81,10 +78,7 @@ class InformationObject(BaseModel):
             **so,
             **filters
         }
-        response, url = self.atom.get(self.browse_api_url, params=params, sf_culture=sf_culture)
-        json_response = response.json()
-        self.raise_for_json_error(json_response, url)
-        return json_response
+        return self.get_json(self.browse_api_url, params=params, sf_culture=sf_culture)
 
     def _validate_sq(self, sq: dict):
         self._validate_query_parameters(sq, two_letter_code='sq')

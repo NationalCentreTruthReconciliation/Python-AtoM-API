@@ -8,7 +8,15 @@ from bs4 import BeautifulSoup
 class BaseModel(ABC):
     ''' The base class for all API models '''
     def __init__(self, atom):
-        self.atom = atom
+        self._atom = atom
+
+    def get_json(self, path: str, params: dict = None, sf_culture: str = 'en'):
+        if not path.lstrip('/').startswith('api/'):
+            raise ValueError(f'the requested API path "{path}" is not an api path!')
+        response, url = self._atom.get(path, headers={}, params=params, sf_culture=sf_culture)
+        json_response = response.json()
+        self.raise_for_json_error(json_response, url)
+        return json_response
 
     def raise_for_json_error(self, json_response, request_url):
         ''' Check json response for error '''
@@ -20,7 +28,7 @@ class BaseModel(ABC):
             if 'not authorized' in message_lower:
                 raise ConnectionError(
                     f'You are not authorized to access "{request_url}" '
-                    f'with the API Key "{self.atom.api_key}"'
+                    f'with the API Key "{self._atom.api_key}"'
                 )
             raise ConnectionError(f'Error connecting to "{request_url}": {message}')
 
