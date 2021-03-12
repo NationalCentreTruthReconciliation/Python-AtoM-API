@@ -47,6 +47,16 @@ class Taxonomy(BaseModel):
     +-------------+--------------------------------+
     '''
 
+    @staticmethod
+    def parse_id(id_: Union[str, TaxonomyId, int]):
+        if isinstance(id_, str):
+            object_id = TaxonomyId.from_str(id_).value
+        elif isinstance(id_, TaxonomyId):
+            object_id = id_.value
+        else:
+            object_id = id_
+        return object_id
+
     @property
     def api_url(self):
         return '/api/taxonomies/{identifier}'
@@ -56,15 +66,6 @@ class Taxonomy(BaseModel):
             if 'taxonomy not found' in json_response['message'].lower():
                 raise ConnectionError(f'No taxonomies found at "{request_url}"')
         super().raise_for_json_error(json_response, request_url)
-
-    def _parse_id(self, id_: Union[str, TaxonomyId, int]):
-        if isinstance(id_, str):
-            object_id = TaxonomyId.from_str(id_).value
-        elif isinstance(id_, TaxonomyId):
-            object_id = id_.value
-        else:
-            object_id = id_
-        return object_id
 
     def browse(self, id_: Union[str, TaxonomyId, int], sf_culture: str = 'en') -> list:
         ''' Get a complete list of taxonomies of one type from AtoM.
@@ -82,7 +83,7 @@ class Taxonomy(BaseModel):
         Returns:
             (list): A list of taxonomy terms. Each term is a dictionary with a "name" key
         '''
-        object_id = self._parse_id(id_)
+        object_id = Taxonomy.parse_id(id_)
         request_path = self.api_url.format(identifier=object_id)
         return self.get_json(request_path, None, sf_culture)
 
@@ -104,15 +105,6 @@ class VirtualTaxonomy(VirtualBaseModel):
     def raw_page_path(self):
         return '/taxonomy/index/id/{identifier}?page={page}&limit={limit}'
 
-    def _parse_id(self, id_: Union[str, TaxonomyId, int]):
-        if isinstance(id_, str):
-            object_id = TaxonomyId.from_str(id_).value
-        elif isinstance(id_, TaxonomyId):
-            object_id = id_.value
-        else:
-            object_id = id_
-        return object_id
-
     def browse(self, id_: Union[str, TaxonomyId, int], sf_culture: str = 'en') -> list:
         ''' Get a complete list of taxonomies of one type from the AtoM front end.
 
@@ -129,11 +121,12 @@ class VirtualTaxonomy(VirtualBaseModel):
         Returns:
             (list): A list of taxonomy terms. Each term is a dictionary with a "name" key
         '''
-        object_id = self._parse_id(id_)
+        object_id = Taxonomy.parse_id(id_)
         page_path = partial_format(self.raw_page_path, identifier=object_id)
-        return self.get_list_from_ui(page_path, sf_culture)
+        return self.get_list_from_ui(page_path, sieve_soup=self._extract_taxonomies,
+                                     sf_culture=sf_culture)
 
-    def parse_data_from_soup(self, html_soup):
+    def _extract_taxonomies(self, html_soup):
         for element in html_soup.find_all('td'):
             anchor_tag = element.find('a')
             if anchor_tag:

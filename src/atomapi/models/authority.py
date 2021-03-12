@@ -20,7 +20,20 @@ class VirtualAuthority(VirtualBaseModel):
     def raw_page_path(self):
         return '/actor/browse?page={page}&limit={limit}'
 
-    def parse_data_from_soup(self, html_soup):
+    def browse(self, sf_culture: str = 'en'):
+        ''' Get a complete list of all authorities from the AtoM frontend.
+
+        Args:
+            sf_culture (str): The language to fetch results in, defaults to 'en'
+
+        Returns:
+            (list): A list of authorities. Each authority is a dict with a name, and a
+            reference_code. The reference_code may be empty if the authority doesn't have one.
+        '''
+        return self.get_list_from_ui(self.raw_page_path, sieve_soup=self._extract_authorities,
+                                     sf_culture=sf_culture)
+
+    def _extract_authorities(self, html_soup):
         for element in html_soup.find_all('article', class_='search-result'):
             authority_name = ''
             reference_code = ''
@@ -35,15 +48,3 @@ class VirtualAuthority(VirtualBaseModel):
                 reference_code = ref_code_li_tag.string
 
             yield {'name': authority_name, 'reference_code': reference_code}
-
-    def browse(self, sf_culture: str = 'en'):
-        ''' Get a complete list of all authorities from the AtoM frontend.
-
-        Args:
-            sf_culture (str): The language to fetch taxonomies in, default to 'en'
-
-        Returns:
-            (list): A list of authorities. Each authority is a dict with a name, and a
-            reference_code. The reference_code may be empty if the authority doesn't have one.
-        '''
-        return self.get_list_from_ui(self.raw_page_path, sf_culture)

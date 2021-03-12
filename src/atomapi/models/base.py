@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 import concurrent.futures
 import re
 
@@ -61,50 +62,42 @@ class VirtualBaseModel(ABC):
     def __init__(self, atom):
         self._atom = atom
 
-    @abstractmethod
-    def parse_data_from_soup(self, html_soup):
-        ''' Parse front end data from HTML soup. This is called for every page requested in
-        scrape_html_list().
+    def get_list_from_ui(self, raw_path: str, sieve_soup: Callable[[BeautifulSoup], list],
+        sf_culture: str = 'en') -> list:
+        ''' Parse all data item from an AtoM list. This may involve making multiple GET requests
+        depending on how many items are in the list.
 
         Args:
-            html_soup: A BeautifulSoup HTML page
-
-        Returns:
-            The objects parsed from the page. May be any type of object.
-        '''
-
-    def get_list_from_ui(self, path: str, sf_culture: str = 'en'):
-        ''' Parse all data item from an AtoM list.
-
-        Args:
-            path (str): The generic path used to access the front end. This path string should have
-            an unformatted {page} and {limit} parameter.
+            raw_path (str): The generic path used to access the front end. This path string should
+            have an unformatted {page} and {limit} parameter.
+            sieve_soup (Callable[[BeautifulSoup], list]): A function that extracts the list of items
+            from the soup-ified pages.
+            sf_culture (str): The language to get the content in
 
         Returns:
             (list): A list of parsed objects from the page. The type of objects depends on what the
-            parse_data_from_soup() function returns.
+            parse_soup() function returns.
         '''
         if sf_culture not in self.ACCEPTED_LANGUAGES:
             msg = (f'the language "{sf_culture}" is not supported for front-end scraping. '
                    f'Only these languages are supported: {", ".join(self.ACCEPTED_LANGUAGES)}')
             raise ValueError(msg)
         for param in (r'{page}', r'{limit}'):
-            if param not in path:
+            if param not in raw_path:
                 msg = 'the requested path does not have a '+param+' parameter - this is mandatory'
                 raise ValueError(msg)
 
-        urls = self._enumerate_list_urls(path, sf_culture)
+        urls = self._enumerate_list_urls(raw_path, sf_culture)
         all_items = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.MAX_THREAD_POOL_EXECUTORS) as \
             executor:
             # Get the text from the webpage for each URL asynchronously
-            web_requests = [executor.submit(self._get_page_content, u, sf_culture) for u in urls]
-            # Process the HTML strings as they come in
+            web_requests = [executor.submit(self._get_page_soup, u, sf_culture) for u in urls]
+            # Process the soup as it comes in
             for future in concurrent.futures.as_completed(web_requests):
-                response_text = future.result()
-                html_soup = BeautifulSoup(response_text, 'html.parser')
-                for item in self.parse_data_from_soup(html_soup):
-                    all_items.append(item)
+                html_soup = future.result()
+                for element in sieve_soup(html_soup):
+                    all_items.append(element)
         return all_items
 
     def _enumerate_list_urls(self, raw_path: str, sf_culture: str) -> list:
@@ -122,7 +115,7 @@ class VirtualBaseModel(ABC):
             all_urls.append(new_url)
         return all_urls
 
-    def _get_total_list_items(self, path: str, sf_culture: str):
+    def _get_total_list_items(self, path: str, sf_culture: str) -> int:
         ''' Get the total number of items in a list from AtoM. Searches for a div element with the
         class 'result_count', and parses the total from the text in the div. The text in the result
         element should look like:
@@ -138,23 +131,23 @@ class VirtualBaseModel(ABC):
         Returns:
             (int): The total number of items AtoM reported are in the list
         '''
-        response_text = self._get_page_content(path, sf_culture)
-        text_soup = BeautifulSoup(response_text, 'html.parser')
-        result_tag = text_soup.find('div', class_='result-count')
+        html_soup = self._get_page_soup(path, sf_culture)
+        result_tag = html_soup.find('div', class_='result-count')
         results_match = self.RESULTS.search(str(result_tag))
         if not results_match:
             raise ConnectionError(f'Could not find total results in tag: {result_tag}')
         total_items = int(results_match.group('total'))
         return total_items
 
-    def _get_page_content(self, path: str, sf_culture: str):
-        ''' Get the raw HTML from a GET request to a URL.
+    def _get_page_soup(self, path: str, sf_culture: str) -> BeautifulSoup:
+        ''' Get the raw HTML from a GET request to a URL and turn it into Beautiful Soup.
 
         Args:
             url (str): A path to a web page.
+            sf_culture (str): The language to get the content in
 
         Returns:
-            The raw HTML webpage content
+            (BeautifulSoup): The soup-ified page content
         '''
         response, _ = self._atom.get(path, {}, {'Accept': 'text/html'}, sf_culture)
-        return response.text
+        return BeautifulSoup(response.text, 'html.parser')
