@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 from functools import lru_cache
+from urllib.parse import urljoin
+import getpass
 
 from requests import Session
-
-from atomapi.credentials import prompt_for_username_password
 
 
 class Authorizer(ABC):
@@ -25,15 +25,22 @@ class BasicAuthorizer(Authorizer):
 
 
 @lru_cache(maxsize=10)
-def get_credentials(login_url):
-    ''' Get a username and password to log in to F5 '''
-    login_data = prompt_for_username_password(f'Enter F5 credentials for {login_url}:')
-    return login_data
+def prompt_for_username_password(prompt: str):
+    print(prompt)
+    username = ''
+    while username == '':
+        username = input('Username: ').strip()
+    password = getpass.getpass()
+    return {
+        'username': username,
+        'password': password,
+    }
+
 
 class F5Authorizer(Authorizer):
     def __init__(self, url: str, **kwargs):
         super().__init__(url, **kwargs)
-        cache_creds = kwargs.get('cache_credentials')
+        cache_creds = kwargs.get('cache_credentials') or False
         self.cache_credentials = bool(cache_creds)
 
     def authorize(self) -> Session:
@@ -43,14 +50,15 @@ class F5Authorizer(Authorizer):
         # Get initial session cookies
         _ = session.post(self.url)
 
-        login_url = f'{self.url}/my.policy'
+        login_url = urljoin(self.url, 'my.policy')
         if not self.cache_credentials:
-            get_credentials.cache_clear()
-        login_data = get_credentials(login_url)
+            prompt_for_username_password.cache_clear()
+        login_data = prompt_for_username_password(f'Enter F5 credentials for {login_url}:')
 
         # Get authorization cookies
         response = session.post(login_url, data=login_data)
 
+        # Raise error if there's an issue
         response.raise_for_status()
         if 'maximum number of concurrent user sessions' in response.text:
             raise ConnectionError('Too many users are logged in. Could not establish connection.')
