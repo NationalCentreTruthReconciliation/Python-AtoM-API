@@ -1,9 +1,12 @@
-from urllib.robotparser import RobotFileParser
 from urllib.parse import urljoin
+from urllib.robotparser import RobotFileParser
+
+import requests
 
 from atomapi.languages import ISO_639_1_LANGUAGES
 from atomapi.utils import parse_url_from_string
-from atomapi.models.taxonomy import Taxonomy
+from atomapi.models.taxonomy import Taxonomy, VirtualTaxonomy
+from atomapi.models.authority import VirtualAuthority
 from atomapi.models.informationobject import InformationObject
 from atomapi.authorizer import Authorizer, BasicAuthorizer
 
@@ -13,19 +16,21 @@ class Atom:
 
     USER_AGENT = 'Python requests v2'
 
-    def __init__(self, url: str, api_key: str = None, authorizer=None, **kwargs):
+    def __init__(self, url: str, api_key: str = None, authorizer=None):
         parsed_url = parse_url_from_string(url.rstrip("/"))
         self.host = parsed_url.host
         self.url = str(parsed_url)
         self.api_key = api_key or ''
-
-        self._lazy_session = None
-        self._authorizer = authorizer
-        self._taxonomies = None
-        self._informationobjects = None
-
         self._ignore_robots = False
         self.robots = RobotFileParser(urljoin(self.url, 'robots.txt'))
+        self._authorizer = authorizer
+
+        # Lazily-evaluated objects
+        self._session = None
+        self._taxonomies = None
+        self._informationobjects = None
+        self._virtual_taxonomies = None
+        self._virtual_authorities = None
 
     def set_authorizer(self, authorizer: Authorizer):
         self._authorizer = authorizer
@@ -50,12 +55,26 @@ class Atom:
         return self._informationobjects
 
     @property
-    def _session(self):
-        if self._lazy_session is None:
+    def v_taxonomies(self) -> VirtualTaxonomy:
+        ''' Scrape taxonomies from the frontend with the browse() method. '''
+        if self._virtual_taxonomies is None:
+            self._virtual_taxonomies = VirtualTaxonomy(self)
+        return self._virtual_taxonomies
+
+    @property
+    def v_authorities(self) -> VirtualAuthority:
+        ''' Scrape authorities from the frontend with the browse() method. '''
+        if self._virtual_authorities is None:
+            self._virtual_authorities = VirtualAuthority(self)
+        return self._virtual_authorities
+
+    @property
+    def session(self) -> requests.Session:
+        if self._session is None:
             if self._authorizer is None:
                 self._authorizer = BasicAuthorizer(self.url)
-            self._lazy_session = self._authorizer.authorize()
-        return self._lazy_session
+            self._session = self._authorizer.authorize()
+        return self._session
 
     def get(self, path: str, params: dict = None, headers: dict = None,
             sf_culture: str = 'en') -> tuple:
@@ -84,13 +103,19 @@ class Atom:
             if not self.api_key:
                 raise ConnectionError('cannot access AtoM API without an API key set')
             request_headers['REST-API-Key'] = self.api_key
-        else:
+        elif not self._ignore_robots:
             if self.robots.last_checked == 0:
                 self.robots.read()
             if not self.robots.can_fetch(self.USER_AGENT, request_url):
                 raise ConnectionError(f'The robots.txt file for {self.url} does not permit '
                                       'web scraping by this application.')
 
-        response = self._session.get(request_url, headers=request_headers, params=request_params)
+        response = self.session.get(request_url, headers=request_headers, params=request_params)
         response.raise_for_status()
         return response, request_url
+
+    def reset_connection(self):
+        ''' Reset the connection to the AtoM instance. The authorizer will be asked for a new
+        session when the the next request is made.
+        '''
+        self._session = None
