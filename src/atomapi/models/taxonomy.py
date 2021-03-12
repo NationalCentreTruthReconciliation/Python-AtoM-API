@@ -88,6 +88,18 @@ class Taxonomy(BaseModel):
 
 
 class VirtualTaxonomy(VirtualBaseModel):
+    ''' Browse a list of taxonomy terms scraped from the AtoM frontend. Terms can be viewed with the
+    browse() method.
+
+    Each has the following attributes:
+
+    +-------------+--------------------------------+
+    |**Attribute**|**Description**                 |
+    +-------------+--------------------------------+
+    |name         |The name of a taxonomy term     |
+    +-------------+--------------------------------+
+    '''
+
     @property
     def raw_page_path(self):
         return '/taxonomy/index/id/{identifier}?page={page}&limit={limit}'
@@ -102,7 +114,7 @@ class VirtualTaxonomy(VirtualBaseModel):
         return object_id
 
     def browse(self, id_: Union[str, TaxonomyId, int], sf_culture: str = 'en') -> list:
-        ''' Get a complete list of taxonomies of one type from AtoM.
+        ''' Get a complete list of taxonomies of one type from the AtoM front end.
 
         To browse the place taxonomies, for example, you can do one of three things:
 
