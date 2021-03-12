@@ -5,7 +5,7 @@ with open('README.md', 'r') as file_handle:
 
 setup(
     name='atomapi',
-    version='0.0.3',
+    version='0.1.0',
     author='Daniel Lovegrove',
     author_email='d.lovegrove11@gmail.com',
     description='Grab data from Atom API with Python',

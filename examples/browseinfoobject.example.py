@@ -4,26 +4,14 @@ API Key.
 The syntax for browsing information objects is complex. Visit this link for details:
 https://www.accesstomemory.org/en/docs/2.5/dev-manual/api/browse-io/
 '''
-from atomapi.sessions import session_factory
-from atomapi.endpoints import BrowseInformationObjectEndpoint
+import atomapi
 
-# Using an F5 session, not a default one.
-session = session_factory.create(
-    name='f5',
-    url='https://youratom.com',
-    cache_credentials=True) # kwargs are session-type dependent
-
-# Set cache expiry time to 2h 30m
-browse_info_objects = BrowseInformationObjectEndpoint(
-    session=session,
-    api_key='1234567890',
-    cache_hours=2,
-    cache_minutes=30)
+atom = atomapi.Atom('https://youratom.ca', api_key='1234567890')
 
 # This call returns results with coffee OR chocolate in any field, with dates
 # that match or overlap a range of January 1, 1990 - March 4, 2001, sorted by
 # date:
-browse_result = browse_info_objects.get(
+browsed = atom.informationobjects.browse(
     sq={
         'sq0': 'coffee',
         'sq1': 'chocolate'
@@ -37,7 +25,9 @@ browse_result = browse_info_objects.get(
         'endDate': '2001-03-04',
         'rangeType': 'inclusive',
         'sort': 'date'
-    })
+    }
+)
 
-print('Browse Result:')
-print(browse_result)
+print(len(browsed['results']), 'results found:')
+for i, result in enumerate(browsed['results'], 1):
+    print(f'{i}. {result}')
