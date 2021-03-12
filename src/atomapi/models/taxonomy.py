@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Union
 
-from atomapi.models.base import BaseModel
+from atomapi.models.base import BaseModel, VirtualBaseModel
+from atomapi.utils import partial_format
 
 
 class TaxonomyId(Enum):
@@ -83,7 +84,45 @@ class Taxonomy(BaseModel):
         '''
         object_id = self._parse_id(id_)
         request_path = self.api_url.format(identifier=object_id)
-        response, url = self.atom.get(request_path, params=None, sf_culture=sf_culture)
-        json_response = response.json()
-        self.raise_for_json_error(json_response, url)
-        return json_response
+        return self.get_json(request_path, None, sf_culture)
+
+
+class VirtualTaxonomy(VirtualBaseModel):
+    @property
+    def raw_page_path(self):
+        return '/taxonomy/index/id/{identifier}?page={page}&limit={limit}'
+
+    def _parse_id(self, id_: Union[str, TaxonomyId, int]):
+        if isinstance(id_, str):
+            object_id = TaxonomyId.from_str(id_).value
+        elif isinstance(id_, TaxonomyId):
+            object_id = id_.value
+        else:
+            object_id = id_
+        return object_id
+
+    def browse(self, id_: Union[str, TaxonomyId, int], sf_culture: str = 'en') -> list:
+        ''' Get a complete list of taxonomies of one type from AtoM.
+
+        To browse the place taxonomies, for example, you can do one of three things:
+
+        1. Pass the name of the taxonomy, with: browse('places')
+        2. Pass the TaxonomyId for places, with: browse(TaxonomyId.PLACES)
+        3. Pass the raw integer ID of the taxonomy, with: browse(42)
+
+        Args:
+            id_ (Union[str, int, TaxonomyId]): The taxonomy selector
+            sf_culture (str): The language to fetch taxonomies in, default to 'en'
+
+        Returns:
+            (list): A list of taxonomy terms. Each term is a dictionary with a "name" key
+        '''
+        object_id = self._parse_id(id_)
+        page_path = partial_format(self.raw_page_path, identifier=object_id)
+        return self.get_list_from_ui(page_path, sf_culture)
+
+    def parse_data_from_soup(self, html_soup):
+        for element in html_soup.find_all('td'):
+            anchor_tag = element.find('a')
+            if anchor_tag:
+                yield {'name': anchor_tag.string}
